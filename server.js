@@ -7,16 +7,16 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Mock Databases
+// --- MOCK DATABASE (Temporary Storage) ---
 let users = [];
 let cars = [];
+let policies = [];
+let payments = [];
 
-// --- ROUTES ---
-
-// Health Check
+// --- HEALTH CHECK ---
 app.get("/health", (req, res) => res.json({ ok: true, message: "DriveSure API is live!" }));
 
-// Auth: Register
+// --- AUTH ROUTES ---
 app.post("/auth/register", (req, res) => {
     const { name, email, password } = req.body;
     const user = { customer_id: Date.now(), name, email };
@@ -24,7 +24,6 @@ app.post("/auth/register", (req, res) => {
     res.status(201).json({ message: "User registered!", user });
 });
 
-// Auth: Login
 app.post("/auth/login", (req, res) => {
     const { email, password } = req.body;
     const user = users.find(u => u.email === email && u.password === password);
@@ -35,17 +34,49 @@ app.post("/auth/login", (req, res) => {
     }
 });
 
-// Cars: Add
+// --- CAR ROUTES ---
 app.post("/cars", (req, res) => {
-    cars.push(req.body);
-    res.status(201).json({ message: "Vehicle added successfully!" });
+    const newCar = { ...req.body, car_id: Date.now() };
+    cars.push(newCar);
+    res.status(201).json({ message: "Vehicle added successfully!", car: newCar });
 });
 
-// Cars: Get by User ID
 app.get("/cars/:id", (req, res) => {
     const userId = parseInt(req.params.id);
     const userCars = cars.filter(c => Number(c.customer_id) === userId);
     res.json({ cars: userCars });
+});
+
+// --- POLICY ROUTES (The missing part!) ---
+app.post("/policies", (req, res) => {
+    const newPolicy = { ...req.body, policy_id: Date.now() };
+    policies.push(newPolicy);
+    res.status(201).json({ message: "Policy selected successfully!", policy: newPolicy });
+});
+
+app.get("/policies/:id", (req, res) => {
+    const userId = parseInt(req.params.id);
+    const userPolicies = policies.map(p => {
+        const car = cars.find(c => c.car_id == p.car_id);
+        return car ? { ...p, brand: car.brand, model_no: car.model_no, color: car.color } : p;
+    }).filter(p => Number(p.customer_id) === userId);
+    res.json({ policies: userPolicies });
+});
+
+// --- PAYMENT ROUTES ---
+app.post("/payments", (req, res) => {
+    const newPayment = { ...req.body, payment_id: Date.now() };
+    payments.push(newPayment);
+    res.status(201).json({ message: "Payment recorded successfully!", payment: newPayment });
+});
+
+app.get("/payments/:id", (req, res) => {
+    const userId = parseInt(req.params.id);
+    const userPayments = payments.map(pay => {
+        const policy = policies.find(p => p.policy_id == pay.policy_id);
+        return policy ? { ...pay, plan_name: policy.plan_name, coverage_type: policy.coverage_type } : pay;
+    }).filter(pay => Number(pay.customer_id) === userId);
+    res.json({ payments: userPayments });
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
