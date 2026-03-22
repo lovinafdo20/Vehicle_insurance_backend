@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// --- MOCK DATABASE (Temporary Storage) ---
+// --- MOCK DATABASE (Stored in RAM) ---
 let users = [];
 let cars = [];
 let policies = [];
@@ -16,7 +16,7 @@ let payments = [];
 // --- HEALTH CHECK ---
 app.get("/health", (req, res) => res.json({ ok: true, message: "DriveSure API is live!" }));
 
-// --- AUTH ROUTES ---
+// --- AUTHENTICATION ---
 app.post("/auth/register", (req, res) => {
     const { name, email, password } = req.body;
     const user = { customer_id: Date.now(), name, email };
@@ -34,7 +34,7 @@ app.post("/auth/login", (req, res) => {
     }
 });
 
-// --- CAR ROUTES ---
+// --- VEHICLE MANAGEMENT ---
 app.post("/cars", (req, res) => {
     const newCar = { ...req.body, car_id: Date.now() };
     cars.push(newCar);
@@ -47,7 +47,7 @@ app.get("/cars/:id", (req, res) => {
     res.json({ cars: userCars });
 });
 
-// --- POLICY ROUTES ---
+// --- POLICY MANAGEMENT ---
 app.post("/policies", (req, res) => {
     const newPolicy = { ...req.body, policy_id: Date.now() };
     policies.push(newPolicy);
@@ -63,7 +63,7 @@ app.get("/policies/:id", (req, res) => {
     res.json({ policies: userPolicies });
 });
 
-// --- PAYMENT ROUTES ---
+// --- PAYMENT MANAGEMENT ---
 app.post("/payments", (req, res) => {
     const newPayment = { ...req.body, payment_id: Date.now() };
     payments.push(newPayment);
