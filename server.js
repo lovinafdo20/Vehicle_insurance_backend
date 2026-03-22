@@ -21,16 +21,16 @@ app.post("/auth/register", (req, res) => {
     const { name, email, password } = req.body;
     const user = { customer_id: Date.now(), name, email };
     users.push({ ...user, password });
-    res.status(201).json({ message: "User registered!", user });
+    res.status(201).json({ message: "User registered successfully!", user });
 });
 
 app.post("/auth/login", (req, res) => {
     const { email, password } = req.body;
     const user = users.find(u => u.email === email && u.password === password);
     if (user) {
-        res.json({ message: "Login successful", user: { customer_id: user.customer_id, name: user.name } });
+        res.json({ message: "Login successful!", user: { customer_id: user.customer_id, name: user.name } });
     } else {
-        res.status(401).json({ message: "Invalid credentials" });
+        res.status(401).json({ message: "Invalid email or password." });
     }
 });
 
@@ -47,11 +47,11 @@ app.get("/cars/:id", (req, res) => {
     res.json({ cars: userCars });
 });
 
-// --- POLICY ROUTES (The missing part!) ---
+// --- POLICY ROUTES ---
 app.post("/policies", (req, res) => {
     const newPolicy = { ...req.body, policy_id: Date.now() };
     policies.push(newPolicy);
-    res.status(201).json({ message: "Policy selected successfully!", policy: newPolicy });
+    res.status(201).json({ message: "Policy linked successfully!", policy: newPolicy });
 });
 
 app.get("/policies/:id", (req, res) => {
@@ -67,7 +67,7 @@ app.get("/policies/:id", (req, res) => {
 app.post("/payments", (req, res) => {
     const newPayment = { ...req.body, payment_id: Date.now() };
     payments.push(newPayment);
-    res.status(201).json({ message: "Payment recorded successfully!", payment: newPayment });
+    res.status(201).json({ message: "Payment recorded!", payment: newPayment });
 });
 
 app.get("/payments/:id", (req, res) => {
