@@ -7,9 +7,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// --- MOCK DATABASE (Stored in RAM) ---
+// --- MOCK DATABASE ---
 let users = [];
-let cars = [];
+let vehicles = []; // Renamed from 'cars' to match your frontend
 let policies = [];
 let payments = [];
 
@@ -34,17 +34,17 @@ app.post("/auth/login", (req, res) => {
     }
 });
 
-// --- VEHICLE MANAGEMENT ---
-app.post("/cars", (req, res) => {
-    const newCar = { ...req.body, car_id: Date.now() };
-    cars.push(newCar);
-    res.status(201).json({ message: "Vehicle added successfully!", car: newCar });
+// --- VEHICLE MANAGEMENT (Updated path to /vehicles) ---
+app.post("/vehicles", (req, res) => {
+    const newVehicle = { ...req.body, car_id: Date.now() };
+    vehicles.push(newVehicle);
+    res.status(201).json({ message: "Vehicle added successfully!", car: newVehicle });
 });
 
-app.get("/cars/:id", (req, res) => {
+app.get("/vehicles/:id", (req, res) => {
     const userId = parseInt(req.params.id);
-    const userCars = cars.filter(c => Number(c.customer_id) === userId);
-    res.json({ cars: userCars });
+    const userVehicles = vehicles.filter(v => Number(v.customer_id) === userId);
+    res.json({ cars: userVehicles });
 });
 
 // --- POLICY MANAGEMENT ---
@@ -57,8 +57,8 @@ app.post("/policies", (req, res) => {
 app.get("/policies/:id", (req, res) => {
     const userId = parseInt(req.params.id);
     const userPolicies = policies.map(p => {
-        const car = cars.find(c => c.car_id == p.car_id);
-        return car ? { ...p, brand: car.brand, model_no: car.model_no, color: car.color } : p;
+        const vehicle = vehicles.find(v => v.car_id == p.car_id);
+        return vehicle ? { ...p, brand: vehicle.brand, model_no: vehicle.model_no, color: vehicle.color } : p;
     }).filter(p => Number(p.customer_id) === userId);
     res.json({ policies: userPolicies });
 });
