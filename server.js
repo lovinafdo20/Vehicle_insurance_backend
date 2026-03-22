@@ -1,38 +1,51 @@
 const express = require("express");
 const cors = require("cors");
-
-// 1. Routes (Make sure these files exist in your 'routes' folder!)
-const authRoutes = require("./routes/authRoutes");
-const carRoutes = require("./routes/carRoutes");
-const policyRoutes = require("./routes/policyRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
-
 const app = express();
 
-// 2. Define PORT only once
 const PORT = process.env.PORT || 3001;
 
-// 3. Middleware
 app.use(cors());
 app.use(express.json());
 
-// 4. Basic Health Check
-app.get("/health", (_req, res) => {
-  res.json({ ok: true, message: "DriveSure API is running." });
+// Mock Databases
+let users = [];
+let cars = [];
+
+// --- ROUTES ---
+
+// Health Check
+app.get("/health", (req, res) => res.json({ ok: true, message: "DriveSure API is live!" }));
+
+// Auth: Register
+app.post("/auth/register", (req, res) => {
+    const { name, email, password } = req.body;
+    const user = { customer_id: Date.now(), name, email };
+    users.push({ ...user, password });
+    res.status(201).json({ message: "User registered!", user });
 });
 
-// 5. Use Routes
-app.use("/auth", authRoutes);
-app.use("/cars", carRoutes);
-app.use("/policies", policyRoutes);
-app.use("/payments", paymentRoutes);
-
-// 6. 404 Handler
-app.use((req, res) => {
-  res.status(404).json({ ok: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+// Auth: Login
+app.post("/auth/login", (req, res) => {
+    const { email, password } = req.body;
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) {
+        res.json({ message: "Login successful", user: { customer_id: user.customer_id, name: user.name } });
+    } else {
+        res.status(401).json({ message: "Invalid credentials" });
+    }
 });
 
-// 7. Start Server (Only at the very bottom)
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+// Cars: Add
+app.post("/cars", (req, res) => {
+    cars.push(req.body);
+    res.status(201).json({ message: "Vehicle added successfully!" });
 });
+
+// Cars: Get by User ID
+app.get("/cars/:id", (req, res) => {
+    const userId = parseInt(req.params.id);
+    const userCars = cars.filter(c => Number(c.customer_id) === userId);
+    res.json({ cars: userCars });
+});
+
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
