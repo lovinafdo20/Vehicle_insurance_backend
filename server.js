@@ -1,82 +1,141 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
-const app = express();
+const mysql = require("mysql2/promise"); // Using promise-based for cleaner code
 
+const app = express();
 const PORT = process.env.PORT || 3001;
 
+// --- MIDDLEWARE ---
 app.use(cors());
 app.use(express.json());
 
-// --- MOCK DATABASE ---
-let users = [];
-let vehicles = []; // Renamed from 'cars' to match your frontend
-let policies = [];
-let payments = [];
-
-// --- HEALTH CHECK ---
-app.get("/health", (req, res) => res.json({ ok: true, message: "DriveSure API is live!" }));
-
-// --- AUTHENTICATION ---
-app.post("/auth/register", (req, res) => {
-    const { name, email, password } = req.body;
-    const user = { customer_id: Date.now(), name, email };
-    users.push({ ...user, password });
-    res.status(201).json({ message: "User registered successfully!", user });
+// --- DATABASE CONNECTION ---
+// This uses your .env file or defaults to XAMPP settings
+const db = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'vehicle_insurance',
+    waitForConnections: true,
+    connectionLimit: 10
 });
 
-app.post("/auth/login", (req, res) => {
-    const { email, password } = req.body;
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) {
-        res.json({ message: "Login successful!", user: { customer_id: user.customer_id, name: user.name } });
-    } else {
-        res.status(401).json({ message: "Invalid email or password." });
+// --- HEALTH CHECK ---
+app.get("/health", (req, res) => res.json({ ok: true, message: "DriveSure API is live and connected!" }));
+
+// --- AUTHENTICATION ---
+app.post("/auth/register", async (req, res) => {
+    const { name, email, password } = req.body;
+    try {
+        const [result] = await db.query(
+            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+            [name, email, password]
+        );
+        res.status(201).json({ 
+            message: "User registered successfully!", 
+            user: { customer_id: result.insertId, name, email } 
+        });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Registration failed", error: err.message });
     }
 });
 
-// --- VEHICLE MANAGEMENT (Updated path to /vehicles) ---
-app.post("/vehicles", (req, res) => {
-    const newVehicle = { ...req.body, car_id: Date.now() };
-    vehicles.push(newVehicle);
-    res.status(201).json({ message: "Vehicle added successfully!", car: newVehicle });
+app.post("/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const [rows] = await db.query("SELECT * FROM users WHERE email = ? AND password = ?", [email, password]);
+        if (rows.length > 0) {
+            const user = rows[0];
+            res.json({ message: "Login successful!", user: { customer_id: user.id || user.customer_id, name: user.name } });
+        } else {
+            res.status(401).json({ message: "Invalid email or password." });
+        }
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Login error" });
+    }
 });
 
-app.get("/vehicles/:id", (req, res) => {
-    const userId = parseInt(req.params.id);
-    const userVehicles = vehicles.filter(v => Number(v.customer_id) === userId);
-    res.json({ cars: userVehicles });
+// --- VEHICLE MANAGEMENT ---
+app.post("/vehicles", async (req, res) => {
+    const { customer_id, vehicle_type, make, model, year, plate_no } = req.body;
+    try {
+        const [result] = await db.query(
+            "INSERT INTO Car (customer_id, vehicle_type, make, model, year, plate_no) VALUES (?, ?, ?, ?, ?, ?)",
+            [customer_id, vehicle_type, make, model, year, plate_no]
+        );
+        res.status(201).json({ message: "Vehicle added successfully!", car_id: result.insertId });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Unable to save vehicle." });
+    }
+});
+
+app.get("/vehicles/:id", async (req, res) => {
+    try {
+        const [rows] = await db.query("SELECT * FROM Car WHERE customer_id = ?", [req.params.id]);
+        res.json({ cars: rows });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Error fetching vehicles." });
+    }
 });
 
 // --- POLICY MANAGEMENT ---
-app.post("/policies", (req, res) => {
-    const newPolicy = { ...req.body, policy_id: Date.now() };
-    policies.push(newPolicy);
-    res.status(201).json({ message: "Policy linked successfully!", policy: newPolicy });
+app.post("/policies", async (req, res) => {
+    const { customer_id, car_id, plan_name, coverage_type, premium_amount, billing_cycle, status } = req.body;
+    try {
+        const [result] = await db.query(
+            "INSERT INTO Policy (customer_id, car_id, plan_name, coverage_type, premium_amount, billing_cycle, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [customer_id, car_id, plan_name, coverage_type, premium_amount, billing_cycle, status]
+        );
+        res.status(201).json({ message: "Policy linked successfully!", policy_id: result.insertId });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Unable to link policy." });
+    }
 });
 
-app.get("/policies/:id", (req, res) => {
-    const userId = parseInt(req.params.id);
-    const userPolicies = policies.map(p => {
-        const vehicle = vehicles.find(v => v.car_id == p.car_id);
-        return vehicle ? { ...p, brand: vehicle.brand, model_no: vehicle.model_no, color: vehicle.color } : p;
-    }).filter(p => Number(p.customer_id) === userId);
-    res.json({ policies: userPolicies });
+app.get("/policies/:id", async (req, res) => {
+    try {
+        // This query joins Policy with Car to get vehicle details (make, model) for the UI
+        const sql = `
+            SELECT p.*, c.make, c.model, c.plate_no 
+            FROM Policy p 
+            JOIN Car c ON p.car_id = c.car_id 
+            WHERE p.customer_id = ?`;
+        const [rows] = await db.query(sql, [req.params.id]);
+        res.json({ policies: rows });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Error fetching policies." });
+    }
 });
 
 // --- PAYMENT MANAGEMENT ---
-app.post("/payments", (req, res) => {
-    const newPayment = { ...req.body, payment_id: Date.now() };
-    payments.push(newPayment);
-    res.status(201).json({ message: "Payment recorded!", payment: newPayment });
+app.post("/payments", async (req, res) => {
+    const { policy_id, amount, payment_method, status, payment_date } = req.body;
+    try {
+        const [result] = await db.query(
+            "INSERT INTO Payment (policy_id, amount, payment_method, status, payment_date) VALUES (?, ?, ?, ?, ?)",
+            [policy_id, amount, payment_method, status, payment_date]
+        );
+        res.status(201).json({ message: "Payment recorded!", payment_id: result.insertId });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Payment failed." });
+    }
 });
 
-app.get("/payments/:id", (req, res) => {
-    const userId = parseInt(req.params.id);
-    const userPayments = payments.map(pay => {
-        const policy = policies.find(p => p.policy_id == pay.policy_id);
-        return policy ? { ...pay, plan_name: policy.plan_name, coverage_type: policy.coverage_type } : pay;
-    }).filter(pay => Number(pay.customer_id) === userId);
-    res.json({ payments: userPayments });
+app.get("/payments/:id", async (req, res) => {
+    try {
+        // Join Payment with Policy to show plan names in the payment history
+        const sql = `
+            SELECT pay.*, pol.plan_name, pol.coverage_type 
+            FROM Payment pay
+            JOIN Policy pol ON pay.policy_id = pol.policy_id
+            WHERE pol.customer_id = ?`;
+        const [rows] = await db.query(sql, [req.params.id]);
+        res.json({ payments: rows });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: "Error fetching payments." });
+    }
 });
 
+// --- START SERVER ---
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
