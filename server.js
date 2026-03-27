@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
-const mysql = require("mysql2/promise"); // Using promise-based for cleaner code
+const mysql = require("mysql2/promise");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,18 +11,25 @@ app.use(cors());
 app.use(express.json());
 
 // --- DATABASE CONNECTION ---
-// This uses your .env file or defaults to XAMPP settings
+// Automatically switches between Local XAMPP and Cloud credentials
 const db = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'vehicle_insurance',
+    port: process.env.DB_PORT || 3306,
+    // SSL is required for most cloud MySQL providers but should be null for local XAMPP
+    ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost' 
+         ? { rejectUnauthorized: false } 
+         : null,
     waitForConnections: true,
     connectionLimit: 10
 });
 
 // --- HEALTH CHECK ---
-app.get("/health", (req, res) => res.json({ ok: true, message: "DriveSure API is live and connected!" }));
+app.get("/health", (req, res) => {
+    res.json({ ok: true, message: "DriveSure API is live and connected!" });
+});
 
 // --- AUTHENTICATION ---
 app.post("/auth/register", async (req, res) => {
@@ -44,15 +51,22 @@ app.post("/auth/register", async (req, res) => {
 app.post("/auth/login", async (req, res) => {
     const { email, password } = req.body;
     try {
-        const [rows] = await db.query("SELECT * FROM users WHERE email = ? AND password = ?", [email, password]);
+        const [rows] = await db.query(
+            "SELECT * FROM users WHERE email = ? AND password = ?", 
+            [email, password]
+        );
         if (rows.length > 0) {
             const user = rows[0];
-            res.json({ message: "Login successful!", user: { customer_id: user.id || user.customer_id, name: user.name } });
+            // Matches your frontend's expectation of 'customer_id'
+            res.json({ 
+                message: "Login successful!", 
+                user: { customer_id: user.customer_id, name: user.name } 
+            });
         } else {
             res.status(401).json({ message: "Invalid email or password." });
         }
     } catch (err) {
-        res.status(500).json({ ok: false, message: "Login error" });
+        res.status(500).json({ ok: false, message: "Login error", error: err.message });
     }
 });
 
@@ -66,7 +80,7 @@ app.post("/vehicles", async (req, res) => {
         );
         res.status(201).json({ message: "Vehicle added successfully!", car_id: result.insertId });
     } catch (err) {
-        res.status(500).json({ ok: false, message: "Unable to save vehicle." });
+        res.status(500).json({ ok: false, message: "Unable to save vehicle.", error: err.message });
     }
 });
 
@@ -89,13 +103,12 @@ app.post("/policies", async (req, res) => {
         );
         res.status(201).json({ message: "Policy linked successfully!", policy_id: result.insertId });
     } catch (err) {
-        res.status(500).json({ ok: false, message: "Unable to link policy." });
+        res.status(500).json({ ok: false, message: "Unable to link policy.", error: err.message });
     }
 });
 
 app.get("/policies/:id", async (req, res) => {
     try {
-        // This query joins Policy with Car to get vehicle details (make, model) for the UI
         const sql = `
             SELECT p.*, c.make, c.model, c.plate_no 
             FROM Policy p 
@@ -118,13 +131,12 @@ app.post("/payments", async (req, res) => {
         );
         res.status(201).json({ message: "Payment recorded!", payment_id: result.insertId });
     } catch (err) {
-        res.status(500).json({ ok: false, message: "Payment failed." });
+        res.status(500).json({ ok: false, message: "Payment failed.", error: err.message });
     }
 });
 
 app.get("/payments/:id", async (req, res) => {
     try {
-        // Join Payment with Policy to show plan names in the payment history
         const sql = `
             SELECT pay.*, pol.plan_name, pol.coverage_type 
             FROM Payment pay
