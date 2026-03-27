@@ -1,20 +1,16 @@
 {
   "name": "vehicle-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "DriveSure Vehicle Insurance Backend",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "echo \"No tests configured yet\""
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "body-parser": "^2.2.2",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "mysql": "^2.18.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7"
   }
 }
