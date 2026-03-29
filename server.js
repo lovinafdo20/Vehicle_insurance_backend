@@ -4,11 +4,11 @@ const cors = require("cors");
 const mysql = require("mysql2/promise");
 
 const app = express();
-// Render assigns a port automatically, or it defaults to 3001 locally
 const PORT = process.env.PORT || 3001;
 
 // --- MIDDLEWARE ---
-app.use(cors());
+// Updated CORS to be more flexible for your Render deployment
+app.use(cors()); 
 app.use(express.json());
 
 // --- DATABASE CONNECTION ---
@@ -17,9 +17,7 @@ const db = mysql.createPool({
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'vehicle_insurance',
-    // Uses 3307 for your XAMPP, or the Cloud Port on Render
     port: process.env.DB_PORT || 3307, 
-    // SSL is required for most Cloud DBs (Aiven/Railway) but disabled for Localhost
     ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost' 
          ? { rejectUnauthorized: false } 
          : null,
@@ -33,7 +31,6 @@ app.get("/health", (req, res) => {
 });
 
 // --- AUTHENTICATION ---
-// Registration Logic
 app.post("/auth/register", async (req, res) => {
     const { name, email, password } = req.body;
     try {
@@ -51,7 +48,6 @@ app.post("/auth/register", async (req, res) => {
     }
 });
 
-// Login Logic
 app.post("/auth/login", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -110,17 +106,18 @@ app.post("/policies", async (req, res) => {
     }
 });
 
-app.get("/policies/:id", async (req, res) => {
+// --- NEW: PAYMENT MANAGEMENT ---
+app.post("/payments", async (req, res) => {
+    const { customer_id, policy_id, amount, payment_method, transaction_id } = req.body;
     try {
-        const sql = `
-            SELECT p.*, c.make, c.model, c.plate_no 
-            FROM Policy p 
-            JOIN Car c ON p.car_id = c.car_id 
-            WHERE p.customer_id = ?`;
-        const [rows] = await db.query(sql, [req.params.id]);
-        res.json({ policies: rows });
+        const [result] = await db.query(
+            "INSERT INTO Transactions (customer_id, policy_id, amount, payment_method, transaction_id, status) VALUES (?, ?, ?, ?, ?, 'Success')", 
+            [customer_id, policy_id, amount, payment_method, transaction_id]
+        );
+        res.status(201).json({ message: "Payment recorded successfully!", transaction_db_id: result.insertId });
     } catch (err) {
-        res.status(500).json({ error: "Error fetching policies." });
+        console.error(err);
+        res.status(500).json({ error: "Payment recording failed: " + err.message });
     }
 });
 
