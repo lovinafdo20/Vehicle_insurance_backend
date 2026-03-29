@@ -1,40 +1,46 @@
 // Change this to your actual Render Backend URL
 const API_BASE = "https://drive-sure-5gwr.onrender.com";
 
-// --- SESSION MANAGEMENT ---
-function saveSession(user) {
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("loggedIn", "true");
-}
-
-function getSession() {
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
-}
-
-function clearSession() {
-    localStorage.removeItem("user");
-    localStorage.removeItem("loggedIn");
-}
-
-// --- HELPERS ---
-function formatCurrency(value) {
-    return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
-}
-
 async function sendRequest(path, options) {
-    try {
-        const response = await fetch(`${API_BASE}${path}`, {
-            headers: { "Content-Type": "application/json" },
-            ...options
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Request failed.");
-        return data;
-    } catch (error) {
-        throw new Error(error.message || "Cannot reach the backend.");
-    }
+    const response = await fetch(`${API_BASE}${path}`, {
+        method: options.method || 'GET',
+        headers: { "Content-Type": "application/json" },
+        body: options.body ? JSON.stringify(options.body) : null
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Request failed");
+    return data;
 }
+
+// Registration Handler
+document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value
+    };
+    try {
+        const data = await sendRequest("/auth/register", { method: "POST", body: payload });
+        localStorage.setItem("user", JSON.stringify(data.user));
+        alert(data.message);
+        window.location.href = "dashboard.html";
+    } catch (err) { alert(err.message); }
+});
+
+// Login Handler
+document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+        email: document.getElementById("loginEmail").value,
+        password: document.getElementById("loginPassword").value
+    };
+    try {
+        const data = await sendRequest("/auth/login", { method: "POST", body: payload });
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.location.href = "dashboard.html";
+    } catch (err) { alert(err.message); }
+});
 
 // --- AUTHENTICATION ---
 document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
