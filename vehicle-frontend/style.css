@@ -147,6 +147,9 @@ a {
 
 .nav-link-soft,
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 10px 14px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.45);
@@ -573,10 +576,13 @@ a {
   .hero,
   .auth-shell,
   .form-shell,
+  .stats-grid,
   .feature-grid,
   .action-grid,
   .policy-grid,
-  .payment-grid {
+  .payment-grid,
+  .status-row,
+  .vehicle-grid {
     grid-template-columns: 1fr;
   }
 
@@ -594,6 +600,20 @@ a {
     width: min(100% - 20px, 1180px);
   }
 
+  .quote-card,
+  .timeline-card,
+  .status-card,
+  .auth-card,
+  .form-card,
+  .feature-card,
+  .action-card,
+  .policy-card,
+  .payment-card,
+  .stat-card,
+  .note-card {
+    padding: 22px;
+  }
+
   .hero h1,
   .page-head h1 {
     font-size: 2.3rem;
@@ -609,5 +629,20 @@ a {
 
   .topbar {
     padding-top: 20px;
+  }
+
+  .nav-links,
+  .dashboard-actions,
+  .stack-actions {
+    width: 100%;
+  }
+
+  .nav-link-soft,
+  .btn-ghost,
+  .btn-brand,
+  .btn-accent,
+  .btn-soft,
+  .btn-outline-brand {
+    width: 100%;
   }
 }
