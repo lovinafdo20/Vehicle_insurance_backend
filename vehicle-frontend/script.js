@@ -664,9 +664,11 @@ async function loadDashboardData() {
   });
 }
 
-loadDashboardData();
-loadDashboardVehicles();
-loadPolicyVehicles();
-loadPaymentPolicies();
-loadDashboardPolicies();
-loadDashboardPayments();
+document.addEventListener("DOMContentLoaded", () => {
+    loadDashboardData();
+    loadDashboardVehicles();
+    loadPolicyVehicles();
+    loadPaymentPolicies();
+    loadDashboardPolicies();
+    loadDashboardPayments();
+});
