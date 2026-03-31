@@ -62,8 +62,12 @@ app.post("/vehicles", async (req, res) => {
 });
 
 app.get("/vehicles/:id", async (req, res) => {
-    const [rows] = await db.query("SELECT * FROM car WHERE customer_id = ?", [req.params.id]);
-    res.json({ cars: rows });
+    try {
+        const [rows] = await db.query("SELECT * FROM car WHERE customer_id = ?", [req.params.id]);
+        res.json(rows); // Send the list directly so .map() works on the frontend
+    } catch (err) {
+        res.status(500).json({ message: "Error fetching vehicles" });
+    }
 });
 
 app.post("/payments", async (req, res) => {
