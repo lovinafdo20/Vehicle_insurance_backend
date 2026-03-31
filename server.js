@@ -76,7 +76,7 @@ app.post("/vehicles", async (req, res) => {
 
     try {
         const [result] = await db.query(
-            "INSERT INTO Car (customer_id, vehicle_type, make, model, year, plate_no) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO car (customer_id, vehicle_type, make, model, year, plate_no) VALUES (?, ?, ?, ?, ?, ?)",
             [customer_id, vehicle_type, make, model, year, plate_no]
         );
 
@@ -88,7 +88,7 @@ app.post("/vehicles", async (req, res) => {
 
 app.get("/vehicles/:id", async (req, res) => {
     try {
-        const [rows] = await db.query("SELECT * FROM Car WHERE customer_id = ?", [req.params.id]);
+        const [rows] = await db.query("SELECT * FROM car WHERE customer_id = ?", [req.params.id]);
         res.json({ cars: rows });
     } catch (err) {
         res.status(500).json({ message: "Error fetching vehicles", details: err.message });
@@ -132,7 +132,7 @@ app.get("/policies/:id", async (req, res) => {
         const [rows] = await db.query(
             `SELECT p.*, c.make, c.model, c.plate_no
              FROM Policy p
-             JOIN Car c ON p.car_id = c.car_id
+             JOIN car c ON p.car_id = c.car_id
              WHERE p.customer_id = ?`,
             [req.params.id]
         );
