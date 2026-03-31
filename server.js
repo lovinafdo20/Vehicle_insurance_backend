@@ -100,25 +100,13 @@ app.post("/policies", async (req, res) => {
         customer_id,
         car_id,
         plan_name,
-        coverage_type,
-        premium_amount,
-        billing_cycle,
-        status
+        premium_amount
     } = req.body;
 
     try {
         const [result] = await db.query(
-            `INSERT INTO Policy (customer_id, car_id, plan_name, coverage_type, premium_amount, billing_cycle, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-                customer_id,
-                car_id,
-                plan_name,
-                coverage_type || null,
-                premium_amount,
-                billing_cycle || null,
-                status || "Active"
-            ]
+            "INSERT INTO Policy (customer_id, car_id, plan_name, premium_amount) VALUES (?, ?, ?, ?)",
+            [customer_id, car_id, plan_name, premium_amount]
         );
 
         res.json({ message: "Policy linked!", id: result.insertId });
@@ -130,7 +118,14 @@ app.post("/policies", async (req, res) => {
 app.get("/policies/:id", async (req, res) => {
     try {
         const [rows] = await db.query(
-            `SELECT p.*, c.make, c.model, c.plate_no
+            `SELECT
+                p.*,
+                'Standard' AS coverage_type,
+                'Yearly' AS billing_cycle,
+                'Active' AS status,
+                c.make,
+                c.model,
+                c.plate_no
              FROM Policy p
              JOIN car c ON p.car_id = c.car_id
              WHERE p.customer_id = ?`,
@@ -193,7 +188,7 @@ app.get("/payments/:id", async (req, res) => {
                 t.status,
                 t.payment_date,
                 p.plan_name,
-                p.coverage_type
+                'Standard' AS coverage_type
              FROM transactions t
              LEFT JOIN Policy p ON t.policy_id = p.policy_id
              WHERE t.customer_id = ?
