@@ -61,9 +61,15 @@ app.post("/vehicles", async (req, res) => {
     } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
+// Change this route in your server.js to match your new script.js
 app.get("/vehicles/:id", async (req, res) => {
-    const [rows] = await db.query("SELECT * FROM car WHERE customer_id = ?", [req.params.id]);
-    res.json({ cars: rows }); // The frontend gets an object, not a list
+    try {
+        const [rows] = await db.query("SELECT * FROM car WHERE customer_id = ?", [req.params.id]);
+        // Wrap it in an object so your script's getArrayFromResponse can find it
+        res.json({ cars: rows }); 
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
 app.post("/payments", async (req, res) => {
