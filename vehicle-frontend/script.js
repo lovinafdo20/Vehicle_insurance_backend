@@ -1,4 +1,31 @@
-const API_BASE = "https://drive-sure-5gwr.onrender.com";
+const DEFAULT_API_BASE = "https://drive-sure-5gwr.onrender.com";
+
+function normalizeApiBase(value) {
+  return typeof value === "string" ? value.replace(/\/+$/, "") : "";
+}
+
+function getApiBaseCandidates() {
+  const candidates = [
+    window.DRIVESURE_API_BASE,
+    document.querySelector('meta[name="drivesure-api-base"]')?.content,
+    localStorage.getItem("drivesureApiBase"),
+    DEFAULT_API_BASE
+  ];
+
+  if (window.location.origin) {
+    candidates.push(window.location.origin);
+    candidates.push(`${window.location.origin}/api`);
+  }
+
+  return [...new Set(candidates.map(normalizeApiBase).filter(Boolean))];
+}
+
+let activeApiBase = normalizeApiBase(
+  window.DRIVESURE_API_BASE ||
+  document.querySelector('meta[name="drivesure-api-base"]')?.content ||
+  localStorage.getItem("drivesureApiBase") ||
+  DEFAULT_API_BASE
+);
 
 function getCustomerId(user = getSession()) {
   return user?.customer_id ?? user?.id ?? user?.user_id ?? null;
@@ -111,40 +138,54 @@ function updateDashboardSummary({ cars = [], policies = [], payments = [] }) {
 }
 
 async function sendRequest(path, options) {
-  let response;
+  const candidates = [activeApiBase, ...getApiBaseCandidates()].filter(Boolean);
+  let lastError = null;
 
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      headers: {
-        "Content-Type": "application/json"
-      },
-      ...options
-    });
-  } catch (_error) {
-    throw new Error("Cannot reach the backend API. Make sure the DriveSure backend is running on http://localhost:3001.");
-  }
+  for (const apiBase of [...new Set(candidates)]) {
+    let response;
 
-  const contentType = response.headers.get("content-type") || "";
-
-  if (!contentType.includes("application/json")) {
-    const text = await response.text();
-    const looksLikeHtml = text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html");
-
-    if (looksLikeHtml) {
-      throw new Error("The frontend reached a page instead of the backend API. Make sure the DriveSure backend is running on http://localhost:3001.");
+    try {
+      response = await fetch(`${apiBase}${path}`, {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        ...options
+      });
+    } catch (_error) {
+      lastError = new Error(`Cannot reach the DriveSure backend at ${apiBase}.`);
+      continue;
     }
 
-    throw new Error("The backend returned a non-JSON response.");
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!contentType.includes("application/json")) {
+      const text = await response.text();
+      const looksLikeHtml = text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html");
+
+      if (looksLikeHtml) {
+        lastError = new Error(`The URL ${apiBase} returned an HTML page instead of JSON.`);
+        continue;
+      }
+
+      lastError = new Error(`The backend at ${apiBase} returned a non-JSON response.`);
+      continue;
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const baseMessage = data.message || data.error || "Request failed.";
+      throw new Error(data.details ? `${baseMessage} ${data.details}` : baseMessage);
+    }
+
+    activeApiBase = apiBase;
+    localStorage.setItem("drivesureApiBase", apiBase);
+    return data;
   }
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    const baseMessage = data.message || data.error || "Request failed.";
-    throw new Error(data.details ? `${baseMessage} ${data.details}` : baseMessage);
-  }
-
-  return data;
+  throw new Error(
+    `${lastError?.message || "Unable to reach the backend API."} Tried: ${[...new Set(candidates)].join(", ")}`
+  );
 }
 
 document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
