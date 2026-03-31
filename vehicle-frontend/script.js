@@ -461,19 +461,34 @@ async function loadDashboardVehicles() {
   const vehicleEmptyState = document.getElementById("vehicleEmptyState");
   const vehicleCount = document.getElementById("vehicleCount");
 
-  if (!vehicleGrid || !vehicleEmptyState || !vehicleCount) {
-    return;
-  }
-
   const user = getSession();
-
   const customerId = getCustomerId(user);
 
-  if (!customerId) {
-    clearSession();
-    window.location.href = "login.html";
-    return;
+  if (!customerId) return;
+
+  try {
+    const data = await sendRequest(`/vehicles/${customerId}`, { method: "GET" });
+    
+    // Specifically look for the "cars" key we saw in the browser
+    const cars = data.cars || []; 
+    
+    vehicleCount.textContent = `${cars.length} vehicle${cars.length === 1 ? "" : "s"}`;
+
+    if (cars.length > 0) {
+      vehicleEmptyState.style.display = "none"; // Hide "No vehicles added yet"
+      vehicleGrid.innerHTML = cars.map(car => `
+        <article class="vehicle-item">
+          <h3>${car.vehicle_type} - ${car.make} ${car.model}</h3>
+          <p>Plate: ${car.plate_no}</p>
+        </article>
+      `).join('');
+    } else {
+      vehicleEmptyState.style.display = "block";
+    }
+  } catch (error) {
+    console.error("Dashboard error:", error);
   }
+}
 
   try {
     const data = await sendRequest(`/vehicles/${customerId}`, {
